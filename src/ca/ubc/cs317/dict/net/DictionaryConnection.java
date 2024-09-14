@@ -37,6 +37,12 @@ public class DictionaryConnection {
     public DictionaryConnection(String host, int port) throws DictConnectionException {
         // TODO Replace this with code that creates the requested connection
         //"Establish a connection with a DICT server, and receive the initial welcome message."
+        if (host.length() == 0) {
+            throw new DictConnectionException("Host not provided.");
+        }
+        if (port < 1000) {
+            throw new DictConnectionException("Did not provide port above 1000.");
+        }
         try {
             this.socket = new Socket(host, port);
             this.out = new PrintWriter(socket.getOutputStream(), true);
@@ -51,22 +57,20 @@ public class DictionaryConnection {
                 this.out.close();
                 this.socket.close();
             } catch (IOException e1) {
-                e1.printStackTrace();
+                throw new DictConnectionException(e1);
             }
+            throw new DictConnectionException();
             
-            e.printStackTrace();
-            
+
         } catch (IOException e) {
             try {
                 this.in.close();
                 this.out.close();
                 this.socket.close();
             } catch (IOException e1) {
-                e1.printStackTrace();
+                throw new DictConnectionException(e1);
             }
-                      
-            e.printStackTrace();
-            
+            throw new DictConnectionException(e.getMessage());
         }
     }
 
@@ -115,6 +119,23 @@ public class DictionaryConnection {
 
         // TODO Add your code here
 
+        try {
+            this.out.println("DEFINE" + database.getName() + '"' + word + '"');
+            String line;
+            while (true) {
+                line = this.in.readLine();
+                String[] split_line = this.parser.splitAtoms(line);
+
+                if (line.equals(".")) {
+                    break;
+                }
+                set.add(new Definition(split_line[0], split_line[1]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
         return set;
     }
 
@@ -133,6 +154,21 @@ public class DictionaryConnection {
 
         // TODO Add your code here
 
+        try {
+            this.out.println("MATCH" + database.getName() + strategy + '"' + word + '"');
+            String line;
+            while (true) {
+                line = this.in.readLine();
+                if (line.equals(".")) {
+                    break;
+                }
+                if (line.contains())
+                set.add(line);
+            }
+        } catch (IOException e) {
+            throw new DictConnectionException(e.getMessage());
+        }
+
         return set;
     }
 
@@ -147,7 +183,6 @@ public class DictionaryConnection {
         // TODO Add your code here
         try {
             this.out.println("SHOW DB");
-            
             // String list_of_databases = this.in.readLine();
             while (true) {
                 String line = this.in.readLine();
@@ -155,6 +190,9 @@ public class DictionaryConnection {
                     break;
                 }
                 String[] split_string = parser.splitAtoms(line);
+                if (split_string.length < 2 || split_string[0].length() == 0 || split_string[1].length() == 0) {
+                    throw new DictConnectionException("Invalid response from dictionary server.");
+                }
                 if (!split_string[0].contains("-")) {
                     continue;
                 }
@@ -163,7 +201,7 @@ public class DictionaryConnection {
            
 
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new DictConnectionException(e);
         }
        
         return databaseMap;
@@ -177,8 +215,6 @@ public class DictionaryConnection {
     public synchronized Set<MatchingStrategy> getStrategyList() throws DictConnectionException {
         Set<MatchingStrategy> set = new LinkedHashSet<>();
 
-        // TODO Add your code here
-
         try {
             this.out.println("SHOW STRAT");
 
@@ -186,10 +222,16 @@ public class DictionaryConnection {
                 String line = this.in.readLine();
                 if (line.equals(".")) {break;}
                 String[] split_line = this.parser.splitAtoms(line);
+                String name = split_line[0];
+                String description = split_line[1];
+
+                if (name.length() == 0 || description.length() == 0) {
+                    throw new DictConnectionException("Name or description not provided.");
+                }
                 set.add(new MatchingStrategy(split_line[0], split_line[1]));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new DictConnectionException(e);
         }
 
         return set;
@@ -202,19 +244,18 @@ public class DictionaryConnection {
      */
     public synchronized String getDatabaseInfo(Database d) throws DictConnectionException {
 	StringBuilder sb = new StringBuilder();
-//         TODO Add your code here
-
     try {
         while (true) {
             out.println("SHOW INFO " + d.getName());
             String line = this.in.readLine();
-            sb.append(line);
             if (line.equals(".")) {
                 break;
             }
+            sb.append(line);
+
         }
     } catch (IOException e) {
-        e.printStackTrace();
+        throw  new DictConnectionException(e);
     }
 
         return sb.toString();
